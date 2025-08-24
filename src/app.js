@@ -11,13 +11,20 @@ import productRoutes from "./routes/product.js";
 import reportRoutes from "./routes/report.js";
 import uploadRoutes from "./routes/upload.js";
 import orderRoutes from "./routes/order.js";
+import statsRoutes from "./routes/stats.js"
+
 
 
 dotenv.config();
 const app = express();
 
 app.use(cookieParser());
-app.use(cors({ origin: "http://localhost:5173", credentials: true }));
+app.use(
+  cors({
+    origin: ["http://localhost:5173", "http://localhost:5175"],
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // Routes
@@ -29,6 +36,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/order", orderRoutes);
+app.use("/api/stats", statsRoutes);
 
 // Logger
 app.use((req, res, next) => {
