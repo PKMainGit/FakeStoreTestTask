@@ -15,10 +15,10 @@ export const createOrder = async (req, res) => {
 
     // 1️⃣ Додаємо замовлення в orders
     const orderQuery = `
-      INSERT INTO orders (items, total, created_at)
-      VALUES ($1, $2, NOW())
-      RETURNING id, total, items, created_at;
-    `;
+  INSERT INTO orders (items, total, created_at, status)
+  VALUES ($1, $2, NOW(), 'pending')
+  RETURNING id, total, items, created_at, status;
+`;
     const orderResult = await client.query(orderQuery, [
       JSON.stringify(items),
       total,
@@ -65,12 +65,42 @@ export const createOrder = async (req, res) => {
 // отримати всі замовлення
 export const getOrders = async (req, res) => {
   try {
-    const { rows } = await pool.query(
-      "SELECT * FROM orders ORDER BY created_at DESC"
-    );
+    const { rows } = await pool.query(`
+      SELECT o.id, o.items, o.total, o.status, o.created_at,
+             json_agg(json_build_object(
+               'product_id', oi.product_id,
+               'quantity', oi.quantity,
+               'price', oi.price
+             )) AS order_items
+      FROM orders o
+      LEFT JOIN order_items oi ON o.id = oi.order_id
+      GROUP BY o.id
+      ORDER BY o.created_at DESC
+    `);
     res.json(rows);
   } catch (error) {
     console.error("Помилка при отриманні замовлень:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const updateOrderStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body; // 'approved' | 'shipped' | 'delivered'
+
+  try {
+    const result = await pool.query(
+      `UPDATE orders SET status = $1 WHERE id = $2 RETURNING *`,
+      [status, id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    res.json({ message: "Status updated", order: result.rows[0] });
+  } catch (error) {
+    console.error("Помилка при оновленні статусу:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
